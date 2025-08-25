@@ -3,74 +3,151 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEpisodeSources, fetchEpisodes } from '../api/animeAPI';
 import VideoPlayer from '../components/VideoPlayer';
 
-export default function Watch(){
+export default function Watch() {
   const { source, slug, episode } = useParams();
   const [sources, setSources] = useState([]);
   const [current, setCurrent] = useState(null);
   const [epsList, setEpsList] = useState([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [errorSources, setErrorSources] = useState('');
+  const [loadingEpisodes, setLoadingEpisodes] = useState(false);
+  const [errorEpisodes, setErrorEpisodes] = useState('');
   const navigate = useNavigate();
 
-  useEffect(()=> {
+  useEffect(() => {
     loadEpisodes();
     loadSources();
     // eslint-disable-next-line
   }, [source, slug, episode]);
 
-  async function loadEpisodes(){
+  async function loadEpisodes() {
+    setLoadingEpisodes(true);
+    setErrorEpisodes('');
     try {
       const data = await fetchEpisodes(source, slug);
-      const list = Array.isArray(data) ? data : (data.episodes || data.data || []);
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.episodes)
+        ? data.episodes
+        : Array.isArray(data?.data)
+        ? data.data
+        : [];
       setEpsList(list || []);
-    } catch (err){ console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setErrorEpisodes('Failed to load episodes.');
+    } finally {
+      setLoadingEpisodes(false);
+    }
   }
 
-  async function loadSources(){
+  async function loadSources() {
+    setLoadingSources(true);
+    setErrorSources('');
     try {
       const data = await fetchEpisodeSources(source, slug, episode);
-      // Normalize
-      const list = Array.isArray(data) ? data : (data.sources || data.videoSources || []);
-      // If items are objects with url/file properties, map to { url, quality }
-      const normalized = (list || []).map(s => {
-        if (typeof s === 'string') return { url: s, quality: 'default' };
-        return { url: s.url || s.file || s.link || s.file_url, quality: s.quality || s.server || 'source' };
-      }).filter(Boolean);
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.sources)
+        ? data.sources
+        : Array.isArray(data?.videoSources)
+        ? data.videoSources
+        : [];
+
+      const normalized = (list || [])
+        .map((s) => {
+          if (typeof s === 'string') return { url: s, quality: 'default' };
+          return {
+            url: s.url || s.file || s.link || s.file_url,
+            quality: s.quality || s.server || 'source',
+          };
+        })
+        .filter(Boolean);
+
       setSources(normalized);
       if (normalized.length) setCurrent(normalized[0].url);
-    } catch (err){ console.error('sources', err); }
+    } catch (err) {
+      console.error('sources', err);
+      setErrorSources('Failed to load sources.');
+    } finally {
+      setLoadingSources(false);
+    }
   }
 
-  function prevEp(){
+  function prevEp() {
     const n = Number(episode) - 1;
     if (n >= 1) navigate(`/watch/${source}/${slug}/${n}`);
   }
-  function nextEp(){
+  function nextEp() {
     const n = Number(episode) + 1;
     navigate(`/watch/${source}/${slug}/${n}`);
   }
 
   return (
-    <div>
-      <h2>{decodeURIComponent(slug).replace(/-/g,' ')} — Episode {episode}</h2>
+    <div className="p-4 text-white">
+      <h2 className="text-xl font-semibold mb-4">
+        {decodeURIComponent(slug).replace(/-/g, ' ')} — Episode {episode}
+      </h2>
 
-      <div className="watch-grid">
-        <div>
-          <VideoPlayer src={current} />
-          <div style={{ marginTop: 8 }}>
-            <button onClick={prevEp}>⬅ Prev</button>
-            <button onClick={nextEp} style={{ marginLeft: 8 }}>Next ➡</button>
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1">
+          {current ? (
+            <VideoPlayer src={current} />
+          ) : (
+            <p className="text-gray-400">No video selected</p>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <button onClick={prevEp} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">
+              ⬅ Prev
+            </button>
+            <button onClick={nextEp} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">
+              Next ➡
+            </button>
           </div>
         </div>
 
-        <aside style={{ marginLeft: 16, minWidth: 220 }}>
-          <h3>Sources</h3>
-          {sources.length === 0 ? <div className="muted">No sources</div> : sources.map((s,i)=>(<div key={i}><button onClick={()=>setCurrent(s.url)}>{s.quality}</button></div>))}
-          <h3 style={{ marginTop: 12 }}>Episodes</h3>
-          <div className="episode-list">
-            {epsList.map((epObj, idx) => {
-              const num = epObj.number ?? epObj.episode ?? (idx+1);
-              return <div key={idx} className="ep-item"><a href={`/watch/${source}/${slug}/${num}`}>Ep {num}</a></div>;
-            })}
-          </div>
+        <aside className="w-full md:w-64 bg-gray-800 p-3 rounded">
+          <h3 className="font-semibold mb-2">Sources</h3>
+          {loadingSources && <p className="text-gray-400">Loading sources…</p>}
+          {errorSources && <p className="text-red-400">{errorSources}</p>}
+          {!loadingSources && !errorSources && sources.length === 0 && (
+            <p className="text-gray-400">No sources</p>
+          )}
+          {sources.map((s, i) => (
+            <div key={i} className="mb-1">
+              <button
+                onClick={() => setCurrent(s.url)}
+                className="w-full px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-left"
+              >
+                {s.quality}
+              </button>
+            </div>
+          ))}
+
+          <h3 className="font-semibold mt-4 mb-2">Episodes</h3>
+          {loadingEpisodes && <p className="text-gray-400">Loading episodes…</p>}
+          {errorEpisodes && <p className="text-red-400">{errorEpisodes}</p>}
+          {!loadingEpisodes && !errorEpisodes && (
+            <div className="grid grid-cols-3 gap-2">
+              {epsList.map((epObj, idx) => {
+                const num = epObj.number ?? epObj.episode ?? idx + 1;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => navigate(`/watch/${source}/${slug}/${num}`)}
+                    className={`px-2 py-1 rounded ${
+                      Number(episode) === num
+                        ? 'bg-blue-600'
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </aside>
       </div>
     </div>
