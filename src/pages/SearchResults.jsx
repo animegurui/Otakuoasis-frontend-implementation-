@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { searchAnime } from '../api';
+import { searchAnime } from '../api/animeAPI';
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
