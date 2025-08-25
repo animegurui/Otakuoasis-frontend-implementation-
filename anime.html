@@ -19,11 +19,7 @@
   <!-- Navbar -->
   <header class="sticky top-0 bg-gray-950 shadow-lg z-40 p-4 flex justify-between items-center">
     <h1 class="text-2xl font-bold text-purple-400"><a href="index.html">OtakuOasis</a></h1>
-    <div class="flex gap-3 items-center">
-      <button id="loginBtn" class="px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-500 transition">Login</button>
-      <button id="logoutBtn" class="hidden px-4 py-2 bg-red-600 rounded-lg hover:bg-red-500 transition">Logout</button>
-      <button id="themeToggle" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">🌙</button>
-    </div>
+    <button id="themeToggle" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition">🌙</button>
   </header>
 
   <main class="max-w-6xl mx-auto p-6">
@@ -39,22 +35,12 @@
     &copy; <span id="year"></span> OtakuOasis
   </footer>
 
-  <!-- Login / Signup Modal -->
-  <div id="authModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
-    <div class="bg-gray-800 p-6 rounded-2xl w-96 text-center">
-      <h2 id="authTitle" class="text-2xl font-bold text-purple-400 mb-4">Login</h2>
-      <input id="username" type="text" placeholder="Username" class="w-full mb-3 px-3 py-2 rounded bg-gray-700">
-      <input id="password" type="password" placeholder="Password" class="w-full mb-4 px-3 py-2 rounded bg-gray-700">
-      <button id="authSubmit" class="w-full bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded mb-2">Submit</button>
-      <p class="text-sm text-gray-400 cursor-pointer" id="toggleAuth">Don’t have an account? Sign up</p>
-      <button id="closeAuth" class="mt-4 text-gray-400 hover:text-white">Close</button>
-    </div>
-  </div>
-
   <script>
+    const API_BASE = "https://animegurui-otakuoasis.onrender.com/api";
+
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Preloader
+    // Preloader hide
     window.addEventListener("load", () => { 
       const preloader = document.getElementById("preloader"); 
       if(preloader) preloader.style.display = "none"; 
@@ -72,82 +58,18 @@
       themeToggle.textContent=isDark?"🌙":"☀️";
     });
 
-    // Auth system (frontend only)
-    let currentUser = localStorage.getItem("currentUser");
-    const users = JSON.parse(localStorage.getItem("users") || "{}");
-
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const authModal = document.getElementById("authModal");
-    const authTitle = document.getElementById("authTitle");
-    const toggleAuth = document.getElementById("toggleAuth");
-    const authSubmit = document.getElementById("authSubmit");
-    const usernameInput = document.getElementById("username");
-    const passwordInput = document.getElementById("password");
-    const closeAuth = document.getElementById("closeAuth");
-
-    let isLogin = true;
-
-    function updateAuthUI(){
-      if(currentUser){
-        loginBtn.classList.add("hidden");
-        logoutBtn.classList.remove("hidden");
-      } else {
-        loginBtn.classList.remove("hidden");
-        logoutBtn.classList.add("hidden");
-      }
-    }
-    updateAuthUI();
-
-    loginBtn.addEventListener("click", ()=> authModal.classList.remove("hidden"));
-    closeAuth.addEventListener("click", ()=> authModal.classList.add("hidden"));
-    toggleAuth.addEventListener("click", ()=>{
-      isLogin = !isLogin;
-      authTitle.textContent = isLogin ? "Login" : "Sign Up";
-      toggleAuth.textContent = isLogin ? "Don’t have an account? Sign up" : "Already have an account? Login";
-    });
-    authSubmit.addEventListener("click", ()=>{
-      const u = usernameInput.value.trim();
-      const p = passwordInput.value.trim();
-      if(!u || !p) return alert("Fill all fields");
-
-      if(isLogin){
-        if(!users[u] || users[u].password !== p){ return alert("Invalid login"); }
-        currentUser = u;
-      } else {
-        if(users[u]) return alert("User exists");
-        users[u] = { password: p, progress: {} };
-        currentUser = u;
-      }
-      localStorage.setItem("users", JSON.stringify(users));
-      localStorage.setItem("currentUser", currentUser);
-      authModal.classList.add("hidden");
-      updateAuthUI();
-      renderWatchButton(); 
-    });
-    logoutBtn.addEventListener("click", ()=>{
-      localStorage.removeItem("currentUser");
-      currentUser=null;
-      updateAuthUI();
-      renderWatchButton();
-    });
-
-    // Anime details
+    // Get anime ID from URL
     const params = new URLSearchParams(window.location.search);
     const animeId = params.get("id");
     const container = document.getElementById("animeDetails");
 
-    let currentAnime = null;
-
+    // Load anime details
     async function loadAnime() {
       if(!animeId){ container.innerHTML="<p class='text-red-400'>Anime not found.</p>"; return; }
       try{
-        const res = await fetch(`/api/anime/${animeId}`);
+        const res = await fetch(`${API_BASE}/anime/${animeId}`);
         if(!res.ok) throw new Error();
         const anime = await res.json();
-        currentAnime = anime;
-
-        renderWatchButton(anime);
 
         container.innerHTML = `
           <div class="flex flex-col md:flex-row gap-6">
@@ -157,7 +79,7 @@
               <p class="text-gray-300 mb-4">${anime.description||"No description available."}</p>
               <p class="text-gray-400 mb-2"><strong>Episodes:</strong> ${anime.episode||"?"}</p>
               <p class="text-gray-400 mb-4"><strong>Status:</strong> ${anime.status||"Unknown"}</p>
-              <div id="watchArea"></div>
+              <a href="${anime.streamUrl||'#'}" class="inline-block bg-purple-500 hover:bg-purple-600 px-6 py-3 rounded-xl transition">▶ Watch Now</a>
             </div>
           </div>
         `;
@@ -168,33 +90,12 @@
       }
     }
 
-    function renderWatchButton(anime=currentAnime){
-      const area = document.getElementById("watchArea");
-      if(!area) return;
-      if(!currentUser){
-        area.innerHTML = `<button class="bg-purple-500 px-6 py-3 rounded-xl hover:bg-purple-600" onclick="alert('Login required to watch')">Login to Watch</button>`;
-        return;
-      }
-      const userData = JSON.parse(localStorage.getItem("users")||"{}")[currentUser];
-      const progress = userData?.progress?.[anime.title];
-      const label = progress ? `▶ Resume from Ep ${progress}` : "▶ Watch Now";
-      area.innerHTML = `<button id="watchNow" class="bg-purple-500 px-6 py-3 rounded-xl hover:bg-purple-600">${label}</button>`;
-      document.getElementById("watchNow").addEventListener("click", ()=>{
-        // Save progress (for demo: always set to ep 1, you can extend to video player)
-        const allUsers = JSON.parse(localStorage.getItem("users"));
-        allUsers[currentUser].progress[anime.title] = progress ? progress+1 : 1;
-        localStorage.setItem("users", JSON.stringify(allUsers));
-        alert("Watching "+anime.title+" (progress saved!)");
-        renderWatchButton(anime);
-      });
-    }
-
-    // Related anime
+    // Load related anime carousel
     async function loadRelated(animeId){
       const section=document.getElementById("relatedSection");
       const grid=document.getElementById("relatedGrid");
       try{
-        const res=await fetch(`/api/anime/${animeId}/related`);
+        const res=await fetch(`${API_BASE}/anime/${animeId}/related`);
         if(!res.ok) throw new Error();
         const related=await res.json();
         if(!related.length) return;
@@ -204,7 +105,7 @@
           const card=document.createElement("div");
           card.className="min-w-[150px] flex-shrink-0 bg-gray-800 rounded-xl overflow-hidden shadow-md hover:scale-105 transition cursor-pointer";
           card.innerHTML=`<img src="${anime.image||'https://via.placeholder.com/150x225?text=?'}" alt="${anime.title}" class="w-full h-36 object-cover"><div class="p-2"><p class="text-sm font-semibold">${anime.title}</p><p class="text-gray-400 text-xs">Ep ${anime.episode||"?"}</p></div>`;
-          card.addEventListener("click", ()=> window.location.href=`anime.html?id=${anime._id||anime.id}`);
+          card.addEventListener("click", ()=> window.location.href=\`anime.html?id=\${anime._id||anime.id}\`);
           grid.appendChild(card);
         });
         section.classList.remove("hidden");
