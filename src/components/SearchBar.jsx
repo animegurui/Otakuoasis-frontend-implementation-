@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { searchAnime } from '../api'; // adjust path if api.js is elsewhere
+import { searchAnime } from '../api'; // adjust to './api' if your api.js sits next to this file
 
 export default function SearchBar({ onResults }) {
   const [q, setQ] = useState('');
@@ -12,8 +12,9 @@ export default function SearchBar({ onResults }) {
     setError('');
     try {
       const results = await searchAnime(q);
-      onResults(results); // send search results back to parent
+      onResults?.(results);
     } catch (err) {
+      console.error(err);
       setError('Failed to fetch anime. Please try again.');
     } finally {
       setLoading(false);
