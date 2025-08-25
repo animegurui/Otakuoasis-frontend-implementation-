@@ -1,61 +1,75 @@
 import React, { useEffect, useState } from 'react';
-import { fetchTrending, searchAnime } from '../api/animeAPI';
-import AnimeCard from '../components/AnimeCard';
 import SearchBar from '../components/SearchBar';
+import AnimeGrid from '../components/AnimeGrid';
+import { fetchTrending } from '../api';
 
-export default function Home(){
+export default function Home() {
   const [trending, setTrending] = useState([]);
-  const [results, setResults] = useState([]);
+  const [searchResults, setSearchResults] = useState(null); // null means “not searching yet”
+  const [loadingTrending, setLoadingTrending] = useState(false);
+  const [errorTrending, setErrorTrending] = useState('');
 
-  useEffect(()=> {
+  useEffect(() => {
+    const loadTrending = async () => {
+      setLoadingTrending(true);
+      setErrorTrending('');
+      try {
+        const data = await fetchTrending();
+        // backend might return an array or an object—normalize to array
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.results)
+          ? data.results
+          : Array.isArray(data?.gogo)
+          ? data.gogo
+          : Array.isArray(data?.db)
+          ? data.db
+          : [];
+        setTrending(list);
+      } catch (e) {
+        console.error(e);
+        setErrorTrending('Failed to load trending.');
+      } finally {
+        setLoadingTrending(false);
+      }
+    };
     loadTrending();
   }, []);
 
-  async function loadTrending(){
-    try {
-      const data = await fetchTrending();
-      // data might be an array or an object from different sources — normalize to array
-      const list = Array.isArray(data) ? data : (data.data || data);
-      setTrending(list || []);
-    } catch (err){
-      console.error('trending', err);
-    }
-  }
+  const handleSearchResults = (payload) => {
+    // `/anime/search` currently returns `{ gogo: [...] }` on your backend.
+    // If you later change it to a plain array, this normalization still works.
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.gogo)
+      ? payload.gogo
+      : Array.isArray(payload?.results)
+      ? payload.results
+      : [];
+    setSearchResults(list);
+  };
 
-  async function doSearch(q){
-    if(!q) return;
-    try {
-      const data = await searchAnime(q);
-      // anigo may return object with provider keys — flatten heuristically
-      let items = [];
-      if (Array.isArray(data)) items = data;
-      else {
-        for (const k of Object.keys(data)) {
-          if (Array.isArray(data[k])) items = items.concat(data[k]);
-        }
-      }
-      setResults(items);
-    } catch (err){
-      console.error('search', err);
-    }
-  }
+  const showingSearch = searchResults && searchResults.length > 0;
 
   return (
-    <div>
-      <SearchBar onSearch={doSearch} />
-      {results.length > 0 ? (
+    <div className="p-4 text-white">
+      <div className="mb-4">
+        <SearchBar onResults={handleSearchResults} />
+      </div>
+
+      {showingSearch ? (
         <>
-          <h2>Search Results</h2>
-          <div className="grid">
-            {results.map((a,i)=>(<AnimeCard key={i} anime={a} />))}
-          </div>
+          <h2 className="text-xl font-semibold mb-3">Search Results</h2>
+          <AnimeGrid items={searchResults} emptyText="No matches found" />
         </>
       ) : (
         <>
-          <h2>Trending</h2>
-          <div className="grid">
-            {trending.length ? trending.map((a,i)=>(<AnimeCard key={i} anime={a} />)) : <div className="muted">No trending found</div>}
-          </div>
+          <h2 className="text-xl font-semibold mb-3">Trending</h2>
+          {loadingTrending && <p>Loading trending…</p>}
+          {errorTrending && <p className="text-red-400">{errorTrending}</p>}
+          {!loadingTrending && !errorTrending && (
+            <AnimeGrid items={trending} emptyText="No trending found" />
+          )}
         </>
       )}
     </div>
