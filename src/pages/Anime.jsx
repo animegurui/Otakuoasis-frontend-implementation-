@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEpisodes } from '../api/animeAPI.jsx'; // ✅ fixed import
+import { fetchEpisodes } from "../api/animeAPI"; // ✅ fixed import
 import EpisodeList from '../components/EpisodeList';
 
 export default function Anime() {
