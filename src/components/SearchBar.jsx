@@ -1,43 +1,29 @@
 import React, { useState } from 'react';
-import { searchAnime } from '../api'; // adjust to './api' if your api.js sits next to this file
+import { useNavigate } from 'react-router-dom';
 
-export default function SearchBar({ onResults }) {
+export default function SearchBar() {
   const [q, setQ] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSearch = async () => {
-    if (!q.trim()) return;
-    setLoading(true);
-    setError('');
-    try {
-      const results = await searchAnime(q);
-      onResults?.(results);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to fetch anime. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = () => {
+    if (q.trim()) navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
   return (
     <div className="searchbar flex gap-2">
       <input
         value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-        placeholder="Search anime (e.g. Naruto)"
-        className="p-2 rounded border border-gray-500 text-black"
+        onChange={(e)=>setQ(e.target.value)}
+        onKeyDown={(e)=>{ if(e.key === 'Enter') handleSearch(); }}
+        placeholder="Search anime (e.g. naruto)"
+        className="p-2 rounded text-black flex-1"
       />
       <button
         onClick={handleSearch}
-        className="px-4 py-2 bg-blue-600 text-white rounded"
-        disabled={loading}
+        className="bg-blue-600 px-4 py-2 rounded text-white"
       >
-        {loading ? 'Searching...' : 'Search'}
+        Search
       </button>
-      {error && <p className="text-red-500 ml-2">{error}</p>}
     </div>
   );
 }
