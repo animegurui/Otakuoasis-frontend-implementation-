@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import AnimeGrid from '../components/AnimeGrid';
-import { fetchTrending, searchAnime } from '../api';
+import { fetchTrending, searchAnime } from '../api/animeAPI.jsx';
 
 export default function Home() {
   const [trending, setTrending] = useState([]);
