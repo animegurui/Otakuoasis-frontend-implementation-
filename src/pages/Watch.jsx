@@ -56,22 +56,33 @@ export default function Watch() {
 
       const normalized = (list || [])
         .map((s) => {
-          if (typeof s === 'string') return { url: s, quality: 'default' };
+          if (typeof s === 'string')
+            return { url: s, quality: 'default', type: detectType(s) };
           return {
             url: s.url || s.file || s.link || s.file_url,
             quality: s.quality || s.server || 'source',
+            type: detectType(s.url || s.file || s.link || s.file_url),
           };
         })
         .filter(Boolean);
 
       setSources(normalized);
-      if (normalized.length) setCurrent(normalized[0].url);
+      if (normalized.length) setCurrent(normalized[0]);
     } catch (err) {
       console.error('sources', err);
       setErrorSources('Failed to load sources.');
     } finally {
       setLoadingSources(false);
     }
+  }
+
+  function detectType(url) {
+    if (!url) return 'unknown';
+    if (url.includes('embed') || url.includes('iframe')) return 'iframe';
+    if (url.endsWith('.mp4') || url.endsWith('.mkv') || url.endsWith('.webm'))
+      return 'video';
+    if (url.endsWith('.m3u8')) return 'hls';
+    return 'video';
   }
 
   function prevEp() {
@@ -92,16 +103,22 @@ export default function Watch() {
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
           {current ? (
-            <VideoPlayer src={current} />
+            <VideoPlayer src={current.url} type={current.type} />
           ) : (
             <p className="text-gray-400">No video selected</p>
           )}
 
           <div className="mt-3 flex gap-2">
-            <button onClick={prevEp} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">
+            <button
+              onClick={prevEp}
+              className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600"
+            >
               ⬅ Prev
             </button>
-            <button onClick={nextEp} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">
+            <button
+              onClick={nextEp}
+              className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600"
+            >
               Next ➡
             </button>
           </div>
@@ -117,10 +134,10 @@ export default function Watch() {
           {sources.map((s, i) => (
             <div key={i} className="mb-1">
               <button
-                onClick={() => setCurrent(s.url)}
+                onClick={() => setCurrent(s)}
                 className="w-full px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-left"
               >
-                {s.quality}
+                {s.quality} ({s.type})
               </button>
             </div>
           ))}
@@ -135,7 +152,9 @@ export default function Watch() {
                 return (
                   <button
                     key={idx}
-                    onClick={() => navigate(`/watch/${source}/${slug}/${num}`)}
+                    onClick={() =>
+                      navigate(`/watch/${source}/${slug}/${num}`)
+                    }
                     className={`px-2 py-1 rounded ${
                       Number(episode) === num
                         ? 'bg-blue-600'
